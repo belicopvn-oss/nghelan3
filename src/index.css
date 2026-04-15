@@ -52,7 +52,7 @@
   }
 
   .dark {
-    --background: 231 84% 5%;
+    --background: 222 47% 5%;
     --foreground: 210 40% 98%;
     --card: 222 47% 11%;
     --card-foreground: 210 40% 98%;
@@ -63,7 +63,7 @@
     --secondary: 142 71% 45%;
     --secondary-foreground: 210 40% 98%;
     --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
+    --muted-foreground: 226 70% 88%;
     --accent: 217 33% 17%;
     --accent-foreground: 210 40% 98%;
     --destructive: 0 63% 31%;
@@ -77,6 +77,12 @@
 @layer base {
   * {
     border-color: hsl(var(--border));
+  }
+  html, body {
+    height: auto;
+    min-height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
   }
   body {
     background-color: hsl(var(--background));

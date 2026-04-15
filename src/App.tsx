@@ -12,6 +12,7 @@ import {
   Play, 
   CheckCircle2, 
   AlertCircle, 
+  XCircle,
   ListChecks, 
   Timer, 
   RotateCcw, 
@@ -91,6 +92,7 @@ export default function App() {
   const [timer, setTimer] = useState(0);
   const [isTimerActive, setIsTimerActive] = useState(false);
   const [isReviewMode, setIsReviewMode] = useState(false);
+  const [reviewFilter, setReviewFilter] = useState<'all' | 'wrong'>('all');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isMemoryBoost, setIsMemoryBoost] = useState(false);
   const [reviewAnswers, setReviewAnswers] = useState<Record<string, string> | null>(null);
@@ -101,14 +103,14 @@ export default function App() {
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
     if (savedTheme) setTheme(savedTheme);
 
-    const savedAnswers = localStorage.getItem('practice_answers');
-    if (savedAnswers) setPracticeAnswers(JSON.parse(savedAnswers));
-
-    const savedResults = localStorage.getItem('practice_results');
-    if (savedResults) setPracticeResults(JSON.parse(savedResults));
-    
     const savedLastModule = localStorage.getItem('last_module_id');
     if (savedLastModule) setActiveModuleId(savedLastModule);
+    
+    // Force reset on page load
+    setPracticeAnswers({});
+    setPracticeResults({});
+    localStorage.removeItem('practice_answers');
+    localStorage.removeItem('practice_results');
   }, []);
 
   // Save data to localStorage
@@ -387,7 +389,7 @@ export default function App() {
             onClick={() => setView('home')}
             className={cn(
               "w-full h-14 justify-start px-4 rounded-xl font-bold transition-all duration-200",
-              view === 'home' ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800"
+              view === 'home' ? "bg-indigo-600 text-white shadow-lg shadow-indigo-200" : "text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800"
             )}
           >
             <HomeIcon className="mr-3 h-5 w-5" />
@@ -404,7 +406,7 @@ export default function App() {
               }}
               className={cn(
                 "w-full h-14 justify-start px-4 rounded-xl font-bold transition-all duration-200",
-                activeModuleId === module.id && view === 'module' ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800"
+                activeModuleId === module.id && view === 'module' ? "bg-indigo-600 text-white shadow-lg shadow-indigo-200" : "text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800"
               )}
             >
               <module.icon className="mr-3 h-5 w-5" />
@@ -414,7 +416,7 @@ export default function App() {
         </aside>
 
         {/* Main Content Area */}
-        <main className="flex-1 lg:ml-[240px]">
+        <main className="flex-1 lg:ml-[240px] min-h-screen pb-[140px]">
           <div className="max-w-[1501px] mx-auto px-8 py-8 relative z-10">
             <AnimatePresence mode="wait">
           {view === 'home' && (
@@ -841,10 +843,14 @@ export default function App() {
                                       <div key={q.id} className="space-y-2">
                                         <div className={cn(
                                           "flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 p-5 rounded-2xl border-2 transition-all duration-300",
-                                          isCorrect ? "border-secondary bg-secondary/5" : 
-                                          isWrong ? "border-destructive bg-destructive/5" :
-                                          isRedo ? "border-amber-400 bg-amber-50/50 dark:bg-amber-900/10 shadow-lg shadow-amber-200/20" :
-                                          answer ? "border-primary/30 bg-primary/5 shadow-sm" : "border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-800/20"
+                                          (isReviewMode || isSubmitted)
+                                            ? isCorrect
+                                              ? "border-[#22C55E] bg-[#ECFDF5] dark:bg-emerald-950/30"
+                                              : isWrong
+                                                ? "border-[#EF4444] bg-[#FEF2F2] dark:bg-red-950/30"
+                                                : "border-slate-100 dark:border-slate-800 opacity-60"
+                                            : isRedo ? "border-amber-400 bg-amber-50/50 dark:bg-amber-900/10 shadow-lg shadow-amber-200/20" :
+                                            answer ? "border-primary/30 bg-primary/5 shadow-sm" : "border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-800/20"
                                         )}>
                                           <div className="flex flex-col gap-1 min-w-[100px]">
                                             <span className="text-[10px] font-black text-primary uppercase tracking-widest">Người nói</span>
@@ -858,9 +864,9 @@ export default function App() {
                                               onChange={(e) => handleAnswer(q.id, e.target.value)}
                                               className={cn(
                                                 "w-full h-14 rounded-xl border-2 bg-white dark:bg-slate-950 px-4 text-sm font-bold transition-all duration-200 focus:ring-4 focus:ring-primary/20 outline-none appearance-none cursor-pointer pr-10",
-                                                isCorrect ? "border-secondary text-secondary" :
-                                                isWrong ? "border-destructive text-destructive" :
-                                                answer ? "border-primary text-primary" : "border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 focus:border-primary"
+                                                (isReviewMode || isSubmitted)
+                                                  ? isCorrect ? "border-[#22C55E] text-emerald-700" : isWrong ? "border-[#EF4444] text-red-700" : "border-slate-200 text-slate-400"
+                                                  : answer ? "border-primary text-primary" : "border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 focus:border-primary"
                                               )}
                                             >
                                               <option value="">Chọn đáp án...</option>
@@ -879,19 +885,31 @@ export default function App() {
                                           </div>
 
                                           {(isReviewMode || isSubmitted) && (
-                                            <div className="flex items-center gap-3 min-w-[140px]">
+                                            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 min-w-[180px]">
                                               {isCorrect ? (
-                                                <div className="flex items-center gap-2 text-secondary font-bold">
-                                                  <CheckCircle2 className="h-5 w-5" />
-                                                  <span>Chính xác</span>
+                                                <div className="flex items-center gap-2 text-emerald-700 font-black bg-emerald-500/10 px-3 py-2 rounded-xl w-full border border-emerald-500/20">
+                                                  <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                                                  <div className="flex flex-col">
+                                                    <span className="text-[10px] uppercase tracking-wider opacity-70">✓ Đáp án đúng</span>
+                                                    <span className="text-sm">Chính xác</span>
+                                                  </div>
                                                 </div>
                                               ) : (
-                                                <div className="flex flex-col">
-                                                  <div className="flex items-center gap-2 text-destructive font-bold">
-                                                    <AlertCircle className="h-5 w-5" />
-                                                    <span>Sai rồi</span>
+                                                <div className="flex flex-col gap-2 w-full">
+                                                  <div className="flex items-center gap-2 text-red-700 font-black bg-red-500/10 px-3 py-2 rounded-xl border border-red-500/20">
+                                                    <XCircle className="h-5 w-5 text-red-500" />
+                                                    <div className="flex flex-col">
+                                                      <span className="text-[10px] uppercase tracking-wider opacity-70">✗ Bạn chọn: {answer || 'Trống'}</span>
+                                                      <span className="text-sm">Chưa đúng</span>
+                                                    </div>
                                                   </div>
-                                                  <span className="text-xs font-black text-secondary mt-1">Đáp án đúng: {q.correct}</span>
+                                                  <div className="flex items-center gap-2 text-emerald-700 font-black bg-emerald-500/10 px-3 py-2 rounded-xl border border-emerald-500/20 border-dashed">
+                                                    <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                                                    <div className="flex flex-col">
+                                                      <span className="text-[10px] uppercase tracking-wider opacity-70">✓ Đáp án đúng</span>
+                                                      <span className="text-sm">{q.correct}</span>
+                                                    </div>
+                                                  </div>
                                                 </div>
                                               )}
                                             </div>
@@ -965,6 +983,7 @@ export default function App() {
                               const isSelected = userAnswers[currentQuestion.id] === key;
                               const isCorrect = key === currentQuestion.correct;
                               const isWrong = isSelected && !isCorrect;
+                              const isCorrectButNotSelected = (isReviewMode || isSubmitted) && isCorrect && !isSelected;
 
                               return (
                                 <motion.button
@@ -974,48 +993,61 @@ export default function App() {
                                   whileTap={!(isReviewMode || isSubmitted) ? { scale: 0.995 } : {}}
                                   onClick={() => handleAnswer(currentQuestion.id, key)}
                                   className={cn(
-                                    "w-full flex items-center gap-5 p-4 rounded-xl border-2 text-left transition-all duration-200 group relative overflow-hidden",
-                                    isSelected
-                                      ? (isReviewMode || isSubmitted)
-                                        ? isCorrect 
-                                          ? "border-secondary bg-secondary/10" 
-                                          : "border-destructive bg-destructive/10"
-                                        : "border-primary bg-primary/5 shadow-md"
-                                      : (isReviewMode || isSubmitted) && isCorrect
-                                        ? "border-secondary bg-secondary/10"
-                                        : "border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30"
+                                    "w-full flex items-center gap-5 p-4 rounded-xl border text-left transition-all duration-200 group relative overflow-visible",
+                                    (isReviewMode || isSubmitted)
+                                      ? isCorrect
+                                        ? isSelected
+                                          ? "border-[#22C55E] bg-[#ECFDF5] dark:bg-emerald-950/30"
+                                          : "border-[#22C55E] border-dashed bg-[#ECFDF5]/50 dark:bg-emerald-950/10"
+                                        : isSelected
+                                          ? "border-[#EF4444] bg-[#FEF2F2] dark:bg-red-950/30"
+                                          : "border-slate-200 dark:border-slate-800 opacity-60"
+                                      : isSelected
+                                        ? "border-2 border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 shadow-md"
+                                        : "border-slate-200 dark:border-slate-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/10 bg-white dark:bg-slate-900"
                                   )}
                                 >
                                   <div className={cn(
                                     "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border-2 font-black text-base transition-all duration-200",
-                                    isSelected
-                                      ? (isReviewMode || isSubmitted)
-                                        ? isCorrect ? "bg-secondary border-secondary text-white" : "bg-destructive border-destructive text-white"
-                                        : "bg-primary border-primary text-white shadow-lg shadow-primary/30"
-                                      : (isReviewMode || isSubmitted) && isCorrect
-                                        ? "bg-secondary border-secondary text-white"
+                                    (isReviewMode || isSubmitted)
+                                      ? isCorrect
+                                        ? "bg-[#22C55E] border-[#22C55E] text-white"
+                                        : isSelected
+                                          ? "bg-[#EF4444] border-[#EF4444] text-white"
+                                          : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-400"
+                                      : isSelected
+                                        ? "bg-primary border-primary text-white shadow-lg shadow-primary/30"
                                         : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 group-hover:border-primary/50 text-slate-500 dark:text-slate-400 group-hover:text-primary"
                                   )}>
                                     {key}
                                   </div>
                                   <div className="flex flex-col">
                                     <span className={cn(
-                                      "text-base font-medium transition-colors duration-200",
-                                      isSelected ? "text-slate-900 dark:text-white" : "text-slate-700 dark:text-slate-300"
+                                      "text-base font-bold transition-colors duration-200",
+                                      (isReviewMode || isSubmitted)
+                                        ? isCorrect ? "text-emerald-700 dark:text-emerald-400" : isSelected ? "text-red-700 dark:text-red-400" : "text-slate-400"
+                                        : isSelected ? "text-slate-900 dark:text-white" : "text-slate-700 dark:text-slate-300"
                                     )}>{value}</span>
                                     {(isReviewMode || isSubmitted) && isCorrect && (
-                                      <span className="text-xs font-bold text-secondary mt-1">Đáp án đúng: {key}</span>
+                                      <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1">
+                                        ✓ Đáp án đúng
+                                      </span>
+                                    )}
+                                    {(isReviewMode || isSubmitted) && isWrong && (
+                                      <span className="text-xs font-black text-red-600 dark:text-red-400 mt-1 flex items-center gap-1">
+                                        ✗ Bạn đã chọn
+                                      </span>
                                     )}
                                   </div>
                                   
                                   {(isReviewMode || isSubmitted) && isCorrect && (
-                                    <div className="ml-auto bg-secondary/20 p-2 rounded-full">
-                                      <CheckCircle2 className="h-5 w-5 text-secondary" />
+                                    <div className="ml-auto bg-emerald-500 text-white p-1.5 rounded-full shadow-sm">
+                                      <CheckCircle2 className="h-4 w-4" />
                                     </div>
                                   )}
                                   {(isReviewMode || isSubmitted) && isWrong && (
-                                    <div className="ml-auto bg-destructive/20 p-2 rounded-full">
-                                      <AlertCircle className="h-5 w-5 text-destructive" />
+                                    <div className="ml-auto bg-red-500 text-white p-1.5 rounded-full shadow-sm">
+                                      <XCircle className="h-4 w-4" />
                                     </div>
                                   )}
                                 </motion.button>
@@ -1026,46 +1058,59 @@ export default function App() {
                         <div className="flex justify-between p-8 border-t border-slate-50 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/50">
                           <Button 
                             variant="ghost" 
-                            disabled={currentQuestionIndex === 0}
-                            onClick={() => setCurrentQuestionIndex(prev => prev - 1)}
+                            disabled={currentQuestionIndex === 0 || (isReviewMode && reviewFilter === 'wrong' && currentPractice.questions.slice(0, currentQuestionIndex).every(q => userAnswers[q.id] === q.correct))}
+                            onClick={() => {
+                              if (isReviewMode && reviewFilter === 'wrong') {
+                                const prevWrongIdx = [...currentPractice.questions].slice(0, currentQuestionIndex).reverse().findIndex(q => userAnswers[q.id] !== q.correct);
+                                if (prevWrongIdx !== -1) setCurrentQuestionIndex(currentQuestionIndex - 1 - prevWrongIdx);
+                              } else {
+                                setCurrentQuestionIndex(prev => prev - 1);
+                              }
+                            }}
                             className="rounded-xl h-12 px-6 font-bold"
                           >
                             <ChevronLeft className="mr-2 h-4 w-4" />
                             Trước đó
                           </Button>
                           
-                          {currentQuestionIndex === currentPractice.questions.length - 1 ? (
+                          {currentQuestionIndex === currentPractice.questions.length - 1 || (isReviewMode && reviewFilter === 'wrong' && currentPractice.questions.slice(currentQuestionIndex + 1).every(q => userAnswers[q.id] === q.correct)) ? (
                             <Button 
                               onClick={handleSubmit}
-                              disabled={isSubmitted}
+                              disabled={isSubmitted || isReviewMode}
                               className={cn(
-                                "rounded-xl h-12 px-10 font-black transition-all duration-300 shadow-lg",
-                                isSubmitted
+                                "rounded-xl h-14 px-10 font-black transition-all duration-300 shadow-xl text-lg uppercase tracking-widest",
+                                (isSubmitted || isReviewMode)
                                   ? "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
-                                  : "bg-gradient-to-r from-indigo-600 to-blue-500 hover:from-indigo-700 hover:to-blue-600 text-white shadow-indigo-200 dark:shadow-none"
+                                  : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200 dark:shadow-none"
                               )}
                             >
-                              <CheckCircle2 className="mr-2 h-4 w-4" />
-                              {isSubmitted ? 'Đã nộp bài' : 'Nộp bài'}
+                              <Send className="mr-2 h-5 w-5" />
+                              {isSubmitted || isReviewMode ? 'Đã nộp bài' : 'Nộp bài'}
                             </Button>
                           ) : (
                             <div className="flex gap-2">
                               <Button 
                                 onClick={handleSubmit}
-                                disabled={isSubmitted}
-                                variant="outline"
+                                disabled={isSubmitted || isReviewMode}
                                 className={cn(
-                                  "rounded-xl h-12 px-4 font-black border-2 lg:hidden transition-all duration-300",
-                                  isSubmitted
-                                    ? "border-slate-200 text-slate-400 cursor-not-allowed"
-                                    : "border-indigo-600 text-indigo-600 hover:bg-indigo-50"
+                                  "rounded-xl h-12 px-6 font-black transition-all duration-300 shadow-lg",
+                                  (isSubmitted || isReviewMode)
+                                    ? "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
+                                    : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-100 dark:shadow-none"
                                 )}
                               >
-                                {isSubmitted ? 'Đã nộp' : 'Nộp bài'}
+                                <Send className="mr-2 h-4 w-4" />
+                                {isSubmitted || isReviewMode ? 'Đã nộp' : 'Nộp bài'}
                               </Button>
                               <Button 
-                                disabled={currentQuestionIndex === currentPractice.questions.length - 1}
-                                onClick={() => setCurrentQuestionIndex(prev => prev + 1)}
+                                onClick={() => {
+                                  if (isReviewMode && reviewFilter === 'wrong') {
+                                    const nextWrongIdx = currentPractice.questions.slice(currentQuestionIndex + 1).findIndex(q => userAnswers[q.id] !== q.correct);
+                                    if (nextWrongIdx !== -1) setCurrentQuestionIndex(currentQuestionIndex + 1 + nextWrongIdx);
+                                  } else {
+                                    setCurrentQuestionIndex(prev => prev + 1);
+                                  }
+                                }}
                                 className="rounded-xl h-12 px-8 font-bold bg-slate-900 text-white dark:bg-white dark:text-slate-900"
                               >
                                 Tiếp theo
@@ -1081,11 +1126,11 @@ export default function App() {
                 </div>
 
                 {/* Desktop Sidebar Navigator */}
-                <div className="hidden lg:block lg:col-span-4">
+                <div className="hidden lg:block lg:col-span-4 border-l border-slate-200 dark:border-slate-800 pl-6">
                   <div className="sticky top-40 space-y-6">
                     <Card className="border-none bg-white dark:bg-slate-900 premium-shadow rounded-[24px] overflow-hidden">
                       <CardHeader className="p-6 pb-2">
-                        <CardTitle className="text-sm font-black uppercase tracking-widest text-blue-900 dark:text-blue-100 flex items-center gap-2">
+                        <CardTitle className="text-sm font-black uppercase tracking-widest text-slate-900 dark:text-slate-100 flex items-center gap-2">
                           <ListChecks className="h-4 w-4" />
                           Tiến độ bài làm
                         </CardTitle>
@@ -1097,28 +1142,35 @@ export default function App() {
                             const isCorrect = (isReviewMode || isSubmitted) && userAnswers[q.id] === q.correct;
                             const isWrong = (isReviewMode || isSubmitted) && isAnswered && userAnswers[q.id] !== q.correct;
 
+                            if (isReviewMode && reviewFilter === 'wrong' && !isWrong) return null;
+
                             return (
                               <motion.button
                                 key={q.id}
                                 whileHover={{ scale: 1.1 }}
                                 whileTap={{ scale: 0.9 }}
                                 className={cn(
-                                  "h-10 w-10 rounded-xl text-xs font-black transition-all duration-300 border-2",
+                                  "h-10 w-10 rounded-xl text-xs font-black transition-all duration-300 border-2 flex items-center justify-center relative",
                                   currentQuestionIndex === idx 
-                                    ? "border-primary bg-primary text-white shadow-lg shadow-primary/20" 
+                                    ? "border-indigo-600 bg-indigo-600 text-white shadow-lg shadow-indigo-200 ring-4 ring-indigo-600/20" 
                                     : (isReviewMode || isSubmitted)
                                       ? isCorrect
                                         ? "border-secondary bg-secondary text-white"
                                         : isWrong
                                           ? "border-destructive bg-destructive text-white"
-                                          : "border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-400"
+                                          : "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-500"
                                       : isAnswered
-                                        ? "border-primary/20 bg-primary/10 text-primary"
-                                        : "border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-400"
+                                        ? "border-indigo-600/20 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600"
+                                        : "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-500"
                                 )}
                                 onClick={() => setCurrentQuestionIndex(idx)}
                               >
                                 {idx + 1}
+                                {isAnswered && !isSubmitted && !isReviewMode && (
+                                  <div className="absolute -top-1 -right-1 bg-secondary text-white rounded-full p-0.5 shadow-sm">
+                                    <CheckCircle2 className="h-2.5 w-2.5" />
+                                  </div>
+                                )}
                               </motion.button>
                             );
                           })}
@@ -1126,24 +1178,49 @@ export default function App() {
                         <Separator className="my-6" />
                         <div className="space-y-4">
                           <div className="flex justify-between text-sm font-black">
-                            <span className="text-blue-800 dark:text-blue-200">Hoàn thành</span>
-                            <span className="text-primary">{Math.round(progress)}%</span>
+                            <span className="text-slate-900 dark:text-slate-100">Đã làm: {Object.keys(userAnswers).length}/{currentPractice.questions.length} câu</span>
+                            <span className="text-indigo-600 font-black">{Math.round(progress)}%</span>
                           </div>
-                          <Progress value={progress} className="h-2 bg-slate-100 dark:bg-slate-800" />
+                          <Progress value={progress} className="h-3 bg-slate-100 dark:bg-slate-800" />
                           
-                          <Button 
-                            onClick={handleSubmit}
-                            disabled={isSubmitted}
-                            className={cn(
-                              "w-full mt-4 rounded-xl h-14 font-black shadow-xl transition-all duration-300 text-lg",
-                              isSubmitted
-                                ? "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
-                                : "bg-gradient-to-r from-indigo-600 to-blue-500 hover:from-indigo-700 hover:to-blue-600 text-white shadow-indigo-200 dark:shadow-none"
-                            )}
-                          >
-                            <CheckCircle2 className="mr-2 h-5 w-5" />
-                            {isSubmitted ? 'Đã nộp bài' : 'Nộp bài'}
-                          </Button>
+                          {isReviewMode ? (
+                            <div className="pt-4 space-y-3">
+                              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-3">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tổng số câu đúng</span>
+                                  <span className="text-lg font-black text-secondary">
+                                    {currentPractice.questions.reduce((acc, q) => acc + (userAnswers[q.id] === q.correct ? 1 : 0), 0)}/{currentPractice.questions.length}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Số câu sai</span>
+                                  <span className="text-lg font-black text-destructive">
+                                    {currentPractice.questions.reduce((acc, q) => acc + (userAnswers[q.id] !== q.correct ? 1 : 0), 0)}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Độ chính xác</span>
+                                  <span className="text-lg font-black text-indigo-600">
+                                    {Math.round((currentPractice.questions.reduce((acc, q) => acc + (userAnswers[q.id] === q.correct ? 1 : 0), 0) / currentPractice.questions.length) * 100)}%
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <Button 
+                              onClick={handleSubmit}
+                              disabled={isSubmitted}
+                              className={cn(
+                                "w-full mt-4 rounded-xl h-16 font-black shadow-2xl transition-all duration-300 text-xl uppercase tracking-widest",
+                                isSubmitted
+                                  ? "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
+                                  : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200 dark:shadow-none"
+                              )}
+                            >
+                              <Send className="mr-2 h-6 w-6" />
+                              {isSubmitted ? 'Đã nộp bài' : 'Nộp bài'}
+                            </Button>
+                          )}
                         </div>
                       </CardContent>
                     </Card>
@@ -1187,7 +1264,7 @@ export default function App() {
                   animate={{ opacity: 1, y: 0 }}
                   className="max-w-4xl mx-auto pt-10"
                 >
-                  <Card className="text-center p-10 border-none bg-white dark:bg-slate-900 premium-shadow rounded-[40px] relative overflow-hidden">
+                  <Card className="text-center p-10 border-none bg-white dark:bg-slate-900 premium-shadow rounded-[40px] relative overflow-visible">
                     <div className="absolute top-0 left-0 w-full h-3 bg-gradient-to-r from-primary to-indigo-400" />
                     <CardHeader className="space-y-6">
                       <motion.div 
@@ -1275,7 +1352,11 @@ export default function App() {
                           Luyện tập lại câu sai (Memory Boost)
                         </Button>
                       )}
-                      <Button onClick={() => setView(activeModuleId ? 'module' : 'home')} className="rounded-2xl h-14 px-10 bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-bold text-base shadow-xl w-full sm:w-auto">
+                      <Button onClick={() => { setIsReviewMode(true); setReviewFilter('all'); setCurrentQuestionIndex(0); }} className="rounded-2xl h-14 px-10 bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-bold text-base shadow-xl w-full sm:w-auto">
+                        <ListChecks className="mr-2 h-5 w-5" />
+                        Xem lại bài làm
+                      </Button>
+                      <Button onClick={() => setView(activeModuleId ? 'module' : 'home')} className="rounded-2xl h-14 px-10 bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-200 font-bold text-base w-full sm:w-auto">
                         <HomeIcon className="mr-2 h-5 w-5" />
                         Về danh sách bài
                       </Button>
@@ -1293,7 +1374,7 @@ export default function App() {
               animate={{ opacity: 1, scale: 1 }}
               className="max-w-2xl mx-auto space-y-8"
             >
-              <Card className="text-center p-10 border-none bg-white dark:bg-slate-900 premium-shadow rounded-[40px] relative overflow-hidden">
+              <Card className="text-center p-10 border-none bg-white dark:bg-slate-900 premium-shadow rounded-[40px] relative overflow-visible">
                 <div className="absolute top-0 left-0 w-full h-3 bg-gradient-to-r from-primary to-indigo-400" />
                 <CardHeader className="space-y-6">
                   <motion.div 
@@ -1376,9 +1457,9 @@ export default function App() {
                     <RotateCcw className="mr-2 h-5 w-5" />
                     Làm lại
                   </Button>
-                  <Button onClick={() => { setIsReviewMode(true); setView('practice'); setCurrentQuestionIndex(0); }} className="rounded-2xl h-14 px-10 bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-bold text-base shadow-xl w-full sm:w-auto">
+                  <Button onClick={() => { setIsReviewMode(true); setReviewFilter('all'); setView('practice'); setCurrentQuestionIndex(0); }} className="rounded-2xl h-14 px-10 bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-bold text-base shadow-xl w-full sm:w-auto">
                     <ListChecks className="mr-2 h-5 w-5" />
-                    Xem đáp án chi tiết
+                    Xem lại bài làm
                   </Button>
                 </CardFooter>
               </Card>
@@ -1396,7 +1477,7 @@ export default function App() {
             initial={{ y: 100 }}
             animate={{ y: 0 }}
             exit={{ y: 100 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-3rem)] max-w-[600px] glass premium-shadow p-4 rounded-[24px] z-50 flex items-center justify-between gap-4 border-primary/20"
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-3rem)] max-w-[800px] glass premium-shadow p-4 rounded-[24px] z-50 flex flex-col sm:flex-row items-center justify-between gap-4 border-primary/20"
           >
             <div className="flex items-center gap-3 px-2">
               <div className="bg-primary/10 p-2 rounded-full">
@@ -1407,14 +1488,50 @@ export default function App() {
                 <p className="text-sm font-bold text-slate-600 dark:text-slate-300">Đang xem lại đáp án</p>
               </div>
             </div>
-            <Button 
-              variant="default" 
-              size="sm" 
-              onClick={() => { setIsReviewMode(false); setReviewAnswers(null); setView(activeModuleId ? 'module' : 'home'); }}
-              className="rounded-xl h-12 px-6 bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-bold"
-            >
-              Thoát
-            </Button>
+
+            <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+              <Button
+                variant={reviewFilter === 'all' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setReviewFilter('all')}
+                className={cn("rounded-lg font-bold px-4", reviewFilter === 'all' && "shadow-md")}
+              >
+                Xem tất cả
+              </Button>
+              <Button
+                variant={reviewFilter === 'wrong' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => {
+                  setReviewFilter('wrong');
+                  // Find first wrong question
+                  const firstWrongIdx = currentPractice?.questions.findIndex(q => userAnswers[q.id] !== q.correct);
+                  if (firstWrongIdx !== -1) setCurrentQuestionIndex(firstWrongIdx);
+                }}
+                className={cn("rounded-lg font-bold px-4", reviewFilter === 'wrong' && "shadow-md")}
+              >
+                Chỉ câu sai
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={retryPractice}
+                className="rounded-xl h-10 px-4 border-2 font-bold"
+              >
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Làm lại
+              </Button>
+              <Button 
+                variant="default" 
+                size="sm" 
+                onClick={() => { setIsReviewMode(false); setIsSubmitted(false); setReviewAnswers(null); setView(activeModuleId ? 'module' : 'home'); }}
+                className="rounded-xl h-10 px-6 bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-bold"
+              >
+                Thoát
+              </Button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
